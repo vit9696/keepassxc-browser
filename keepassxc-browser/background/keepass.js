@@ -20,6 +20,7 @@ keepass.databaseHash = '';
 keepass.previousDatabaseHash = '';
 keepass.keyId = 'keepassxc-browser-cryptokey-name';
 keepass.keyBody = 'keepassxc-browser-key';
+keepass.connectionTimeout = 5000; // Milliseconds
 keepass.messageTimeout = 500; // Milliseconds
 keepass.nonce = nacl.util.encodeBase64(nacl.randomBytes(keepass.keySize));
 keepass.reconnectLoop = null;
@@ -1007,16 +1008,23 @@ keepass.connectToNative = function() {
 };
 
 keepass.onNativeMessage = function(response) {
-    //console.log('Received message: ' + JSON.stringify(response));
+    console.log('Received message: ' + JSON.stringify(response));
 
     // Handle database lock/unlock status
     if (response.action === kpActions.DATABASE_LOCKED || response.action === kpActions.DATABASE_UNLOCKED) {
         keepass.updateDatabase();
+    } else if (response.action === 'reconnected') {
+        setTimeout(function() {
+            keepass.reconnect(null, keepass.connectionTimeout);
+        }, 1000);
+    } else if (response.action === 'disconnected') {
+        if (keepass.isConnected) {
+            disconnect();
+        }
     }
 };
 
-function onDisconnected() {
-    keepass.nativePort = null;
+function disconnect() {
     keepass.isConnected = false;
     keepass.isDatabaseClosed = true;
     keepass.isKeePassXCAvailable = false;
@@ -1026,6 +1034,12 @@ function onDisconnected() {
     page.clearCredentials(page.currentTabId, true);
     keepass.updatePopup('cross');
     keepass.updateDatabaseHashToContent();
+}
+
+function onDisconnected() {
+    console.log('onDisconnected');
+    keepass.nativePort = null;
+    disconnect();
     console.log('Failed to connect: ' + (browser.runtime.lastError === null ? 'Unknown error' : browser.runtime.lastError.message));
 }
 
@@ -1210,14 +1224,18 @@ keepass.disableAutomaticReconnect = function() {
 };
 
 keepass.reconnect = async function(tab, connectionTimeout) {
-    keepass.connectToNative();
+    console.log('reconnect()');
+    keepass.isConnected = true;
     keepass.generateNewKeyPair();
+
     const keyChangeResult = await keepass.changePublicKeys(tab, true, connectionTimeout).catch((e) => {
+        console.log('Error changing keys');
         return false;
     });
 
     // Change public keys timeout
     if (!keyChangeResult) {
+        console.log('Key change timeout');
         return false;
     }
 
