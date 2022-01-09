@@ -6,6 +6,7 @@ keepass.keyPair = { publicKey: null, secretKey: null };
 keepass.serverPublicKey = '';
 keepass.clientID = '';
 keepass.isConnected = false;
+keepass.isCurrentDatabaseAssociated = false;
 keepass.isDatabaseClosed = true;
 keepass.isKeePassXCAvailable = false;
 keepass.isEncryptionKeyUnrecognized = false;
@@ -372,7 +373,7 @@ keepass.generatePassword = async function(tab) {
 };
 
 keepass.associate = async function(tab) {
-    if (keepass.isAssociated()) {
+    if (keepass.isAssociated() && keepass.isCurrentDatabaseAssociated) {
         return AssociatedAction.ASSOCIATED;
     }
 
@@ -445,6 +446,7 @@ keepass.testAssociation = async function(tab, args = []) {
         const [ enableTimeout = false, triggerUnlock = false ] = args;
         const dbHash = await keepass.getDatabaseHash(tab, [ enableTimeout, triggerUnlock ]);
         if (!dbHash) {
+            keepass.isCurrentDatabaseAssociated = false;
             return false;
         }
 
@@ -494,6 +496,13 @@ keepass.testAssociation = async function(tab, args = []) {
             const parsed = JSON.parse(message);
             keepass.setcurrentKeePassXCVersion(parsed.version);
             keepass.isEncryptionKeyUnrecognized = false;
+
+            // Separate association check for non-connected databas support
+            if (keepass.compareVersion('2.7.0', keepass.currentKeePassXC)) {
+                keepass.isCurrentDatabaseAssociated = parsed.associated === 'true';
+            } else {
+                keepass.isCurrentDatabaseAssociated = true;
+            }
 
             if (!keepass.verifyResponse(parsed, incrementedNonce)) {
                 const hash = response.hash || 0;
@@ -582,6 +591,7 @@ keepass.getDatabaseHash = async function(tab, args = []) {
             } else if (parsed.errorCode) {
                 keepass.databaseHash = '';
                 keepass.isDatabaseClosed = true;
+                keepass.isCurrentDatabaseAssociated = false;
                 keepass.handleError(tab, kpErrors.DATABASE_NOT_OPENED);
                 return keepass.databaseHash;
             }
@@ -593,6 +603,7 @@ keepass.getDatabaseHash = async function(tab, args = []) {
         keepass.isDatabaseClosed = true;
         if (response.message && response.message === '') {
             keepass.isKeePassXCAvailable = false;
+            keepass.isCurrentDatabaseAssociated = false;
             keepass.handleError(tab, kpErrors.TIMEOUT_OR_NOT_CONNECTED);
         } else {
             keepass.handleError(tab, response.errorCode, response.error);
@@ -1065,6 +1076,7 @@ function onDisconnected() {
     keepass.isConnected = false;
     keepass.isDatabaseClosed = true;
     keepass.isKeePassXCAvailable = false;
+    keepass.isCurrentDatabaseAssociated = false;
     keepass.associated.value = false;
     keepass.associated.hash = null;
     keepass.databaseHash = '';

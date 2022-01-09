@@ -321,7 +321,7 @@ options.getPartiallyHiddenKey = function(key) {
     return !key ? 'Error' : (key.substr(0, 8) + '*'.repeat(10));
 };
 
-options.initConnectedDatabases = function() {
+options.initConnectedDatabases = async function() {
     $('#dialogDeleteConnectedDatabase').modal({ keyboard: true, show: false, backdrop: true });
     $('#tab-connected-databases tr.clone:first button.delete:first').click(function(e) {
         e.preventDefault();
@@ -387,6 +387,11 @@ options.initConnectedDatabases = function() {
     } else {
         $('#tab-connected-databases table tbody:first tr.empty:first').show();
     }
+
+    // Disable connect button if database is closed or already associated
+    const isAssociated = await browser.runtime.sendMessage({ action: 'is_associated' });
+    const isDatabaseClosed = await browser.runtime.sendMessage({ action: 'is_database_closed' });
+    $('#connect-button').prop('disabled', isAssociated || isDatabaseClosed);
 
     $('#connect-button').click(async function() {
         const result = await browser.runtime.sendMessage({ action: 'associate' });

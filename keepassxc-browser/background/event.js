@@ -198,6 +198,14 @@ kpxcEvent.compareVersion = async function(tab, args = []) {
     return keepass.compareVersion(args[0], args[1]);
 };
 
+kpxcEvent.isAssociated = async function() {
+    return keepass.isCurrentDatabaseAssociated;
+};
+
+kpxcEvent.isDatabaseClosed = async function() {
+    return keepass.isDatabaseClosed;
+};
+
 // All methods named in this object have to be declared BEFORE this!
 kpxcEvent.messageHandlers = {
     'add_credentials': keepass.addCredentials,
@@ -218,7 +226,9 @@ kpxcEvent.messageHandlers = {
     'get_tab_information': kpxcEvent.onGetTabInformation,
     'get_totp': keepass.getTotp,
     'init_http_auth': kpxcEvent.initHttpAuth,
+    'is_associated': kpxcEvent.isAssociated,
     'is_connected': keepass.getIsKeePassXCAvailable,
+    'is_database_closed': kpxcEvent.isDatabaseClosed,
     'load_keyring': kpxcEvent.onLoadKeyRing,
     'load_settings': kpxcEvent.onLoadSettings,
     'lock_database': kpxcEvent.lockDatabase,
