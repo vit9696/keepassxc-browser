@@ -9,11 +9,11 @@ function updateAvailableResponse(available) {
 }
 
 async function initSettings() {
-    $('#settings #btn-options').click(() => {
+    $('#settings #options-button').click(() => {
         browser.runtime.openOptionsPage().then(close());
     });
 
-    $('#settings #btn-choose-credential-fields').click(async () => {
+    $('#settings #choose-custom-login-fields-button').click(async () => {
         await browser.windows.getCurrent();
         const tabs = await browser.tabs.query({ active: true, currentWindow: true });
         const tab = tabs[0];
@@ -25,7 +25,6 @@ async function initSettings() {
         close();
     });
 }
-
 
 async function initColorTheme() {
     const colorTheme = await browser.runtime.sendMessage({
@@ -39,6 +38,12 @@ async function initColorTheme() {
     }
 }
 
+// Resizes the popup to the default size if the width is too small
+async function resizePopup() {
+    if (document.body.offsetWidth < 180) {
+        document.body.style.width = isFirefox() ? '380px' : '460px';
+    }
+}
 
 $(async () => {
     await initSettings();
