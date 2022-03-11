@@ -2,6 +2,9 @@
 
 var $ = jQuery.noConflict(true);
 
+const DEFAULT_POPUP_SIZE = '460px';
+const PINNED_POPUP_SIZE = '380px';
+
 function updateAvailableResponse(available) {
     if (available) {
         $('#update-available').show();
@@ -40,8 +43,10 @@ async function initColorTheme() {
 
 // Resizes the popup to the default size if the width is too small
 async function resizePopup() {
-    if (document.body.offsetWidth < 180) {
-        document.body.style.width = isFirefox() ? '380px' : '460px';
+    if (document.body.offsetWidth > 0 && document.body.offsetWidth < 180) {
+        document.body.style.width = isFirefox() ? PINNED_POPUP_SIZE : DEFAULT_POPUP_SIZE;
+    } else {
+        document.body.style.width = DEFAULT_POPUP_SIZE;
     }
 }
 
