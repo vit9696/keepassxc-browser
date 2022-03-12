@@ -16,7 +16,12 @@ async function initSettings() {
         browser.runtime.openOptionsPage().then(close());
     });
 
-    $('#settings #choose-custom-login-fields-button').click(async () => {
+    const customLoginFieldsButton = document.body.querySelector('#settings #choose-custom-login-fields-button');
+    if (isFirefox()) {
+        customLoginFieldsButton.id = 'choose-custom-login-fields-button-moz';
+    }
+
+    customLoginFieldsButton.addEventListener('click', async () => {
         await browser.windows.getCurrent();
         const tabs = await browser.tabs.query({ active: true, currentWindow: true });
         const tab = tabs[0];
