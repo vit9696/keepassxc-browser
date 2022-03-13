@@ -146,6 +146,7 @@ code {
 }
 
 #lock-database-button {
+    display: none;
     width: 2.5rem;
 }
 
