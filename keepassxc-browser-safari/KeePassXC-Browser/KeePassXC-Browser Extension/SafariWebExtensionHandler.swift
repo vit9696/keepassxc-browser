@@ -16,6 +16,7 @@
  */
 
 import SafariServices
+import Darwin
 import os.log
 
 let SFExtensionMessageKey = "message"
@@ -25,6 +26,8 @@ var socketConnected = false
 var maxMessageLength: Int32 = 1024 * 1024;
 
 class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
+    weak var timer: Timer?
+    
     func getSocketPath() -> String {
         let homePath = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "KeePassXC")?.path
         return homePath! + "/" + SocketFileName;
@@ -33,6 +36,9 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     func closeSocket() {
         if (socketFD != -1) {
             os_log(.default, "Closing socket")
+            
+            timer?.invalidate()
+            
             close(socketFD)
             socketFD = -1
         }
@@ -99,7 +105,42 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
             return false
         }
         
+        timer = Timer.scheduledTimer(timeInterval: 5, target: self, selector: #selector(periodicCheck(_:)), userInfo: nil, repeats: true)
+        
         return true
+    }
+
+    @objc func periodicCheck(_ timer: Timer) {
+        let FIONREAD : UInt = 0x4004667f; //< sys/filio.h
+
+        var bytesReady : Int = 0
+        let ret = withUnsafeMutablePointer(to: &bytesReady) {
+            return ioctl(socketFD, FIONREAD, $0)
+        }
+        
+        if (ret < 0 || bytesReady == 0) {
+            return;
+        }
+        
+        let receiveBuffer = UnsafeMutablePointer<CChar>.allocate(capacity: bytesReady)
+        let bytesRead = read(socketFD, receiveBuffer, bytesReady)
+        if (bytesRead > 0) {
+            os_log(.default, "Poll read %d bytes", bytesRead)
+
+            let responseString = String.init(bytesNoCopy: receiveBuffer, length: bytesRead, encoding: .utf8, freeWhenDone: false)
+
+            os_log(.default, "Poll data: %{public}s", responseString!)
+            
+            SFSafariApplication.dispatchMessage(withName: "periodic",
+                                                toExtensionWithIdentifier: "com.keepassxc.KeePassXC-Browser-Extension",
+                                                userInfo:  [ SFExtensionMessageKey: [ responseString ] ]) { error in
+                // os_log(.error, "Message attempted. Error info: \(String.init(describing: error))")
+            }
+        } else {
+            os_log(.error, "Poll error reading from socket %d", errno)
+        }
+
+        receiveBuffer.deallocate()
     }
     
 	func beginRequest(with context: NSExtensionContext) {
